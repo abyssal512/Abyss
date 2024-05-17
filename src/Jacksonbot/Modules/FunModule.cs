@@ -99,12 +99,11 @@ public partial class FunModule : BotModuleBase
 
     [SlashCommand("randompin")]
     [Description("Shows a random pin.")]
-    public async Task<IDiscordCommandResult> Command_RandomPinAsync()
+    public async Task<IDiscordCommandResult> Command_RandomPinAsync([Name("From")] 
+        [Description("Limits the selection to pins from a specific user. (optional)")] IMember? member = null)
     {
         if (Context.GuildId == null) return Response();
         await Deferral();
-        var member = await Context.Bot.FetchMemberAsync(Context.GuildId.Value, Context.Bot.CurrentUser.Id);
-        if (member == null) return Response();
         var channels = await Context.Bot.FetchChannelsAsync(Context.GuildId.Value);
 
         var messages = 
@@ -118,7 +117,7 @@ public partial class FunModule : BotModuleBase
                 {
                     return new List<IUserMessage>();
                 }
-            }))).SelectMany(x => x).ToArray();
+            }))).SelectMany(x => x).Where(e => member == null || e.Author.Id == member.Id).ToArray();
 
         if (messages.Length == 0) return Response("I couldn't fetch any pins for this server. Does this server have any pins?");
         var m = messages.Random();
