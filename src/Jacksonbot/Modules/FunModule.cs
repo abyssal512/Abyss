@@ -1,8 +1,10 @@
+using Abyssal.Common;
 using Disqord;
 using Disqord.Bot.Commands;
 using Disqord.Bot.Commands.Application;
 using Disqord.Extensions.Interactivity.Menus;
 using Disqord.Extensions.Interactivity.Menus.Paged;
+using Disqord.Rest;
 using Jacksonbot.Interactions;
 using Jacksonbot.Modules.Abstract;
 using Newtonsoft.Json.Linq;
@@ -94,6 +96,43 @@ public partial class FunModule : BotModuleBase
     //
     //     return Response(stringBuilder.ToString());
     // }
+
+    [SlashCommand("randompin")]
+    [Description("Shows a random pin.")]
+    public async Task<IDiscordCommandResult> Command_RandomPinAsync()
+    {
+        if (Context.GuildId == null) return Response();
+        await Deferral();
+        var member = await Context.Bot.FetchMemberAsync(Context.GuildId.Value, Context.Bot.CurrentUser.Id);
+        if (member == null) return Response();
+        var channels = await Context.Bot.FetchChannelsAsync(Context.GuildId.Value);
+
+        var messages = 
+            (await Task.WhenAll(channels.Where(e => e is ITextChannel).Select(async e =>
+            {
+                try
+                {
+                    return await ((ITextChannel)e).FetchPinnedMessagesAsync();
+                }
+                catch (Exception)
+                {
+                    return new List<IUserMessage>();
+                }
+            }))).SelectMany(x => x).ToArray();
+
+        if (messages.Length == 0) return Response("I couldn't fetch any pins for this server. Does this server have any pins?");
+        var m = messages.Random();
+
+        var embed = new LocalEmbed()
+            .WithAuthor(m.Author)
+            .WithDescription(m.Content)
+            .WithTimestamp(m.CreatedAt());
+        if (m.Attachments.Any())
+        {
+            embed.ImageUrl = m.Attachments[0].Url;
+        }
+        return Response(Discord.MessageJumpLink(Context.GuildId, m.ChannelId, m.Id), embed);
+    }
 
     [SlashCommand("roll")]
     [Description("Rolls a dice of the supplied size.")]
